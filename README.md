@@ -1,2 +1,2 @@
-# ECE792proj
+# ECE792 Project
 HHL
