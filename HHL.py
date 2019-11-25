@@ -108,11 +108,11 @@ b = np.asarray([2,0])
 '''
 # From the paper, 'Quantum Circuit Design for Solving 
 # Linear Systems of Equations'
-A = np.asarray([[15, 9, 5, -3],\
-                [9, 15, 3, -5],\
-                [5, 3, 15, -9],\
-                [-3, -5, -9, 15]])
-b = np.asarray([1,1,1,1])
+A = 0.25*np.asarray([[15, 9, 5, -3],\
+                     [9, 15, 3, -5],\
+                     [5, 3, 15, -9],\
+                     [-3, -5, -9, 15]])
+b = 0.5*np.asarray([1,1,1,1])
 '''
 
 cexpherm = hermtocontU(A)
@@ -146,6 +146,7 @@ bnormfactor = prepareb(b,circ,qbtox)
 # understanding/explaining how things work
 
 circ.h(qclock)
+circ.barrier()
 
 Ulist,_ = getUs(len(qclock), cexpherm)
 for i in range(len(Ulist)):
@@ -168,6 +169,7 @@ circ.barrier()
 # probability of ancilla = 1 for post selection goes down with r
 r=5
 for i in range(len(qclock)):
+    print(2**(len(qclock)-1-i))
     circ.cry((2**(len(qclock)-1-i)*pi)/2**(r),qclock[i],qanc[0])
 circ.barrier()
 
@@ -182,6 +184,9 @@ for i in range(len(invUlist)):
     reglist = [qbtox[k] for k in range(len(qbtox))]
     reglist.append(qclock[len(invUlist)-1-i])
     circ.unitary(invUlist[len(invUlist)-1-i], reglist)
+circ.barrier()
+
+circ.h(qclock)
 circ.barrier()
 
 #########################################################
@@ -268,6 +273,7 @@ for key in counts.keys():
 HHLans = HHLans/totcounts
 
 actualans=np.matmul(np.linalg.inv(A),np.asarray(b).reshape(len(b),1))
+
 print('State probabilities from HHL:')
 for i in range(np.shape(HHLans)[0]):
     print('{}|{}>'.format(HHLans[i][0],i), end=' ')
