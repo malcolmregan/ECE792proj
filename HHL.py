@@ -71,8 +71,7 @@ def hermtocontU(mat):
     # matrix hermitian
     if np.array_equal(mat, mat.conj().T):
         hermop = mat
-    T = 2 # how to pick T? larger T bitshifts result 
-          # is final result (returned values)*T??
+    T = 2 # how to pick T? 
     expherm = expm(2j*pi*hermop/T)
     # add control
     M0 = np.asarray([[1,0],\
@@ -102,7 +101,6 @@ def prepareb(vector,circ, qb):
 ####################################################
 
 # LANL Example
-
 A = np.asarray([[0.75, 0.25],\
                 [0.25, 0.75]])
 b = np.asarray([2,0]) 
@@ -116,6 +114,7 @@ A = np.asarray([[15, 9, 5, -3],\
                 [-3, -5, -9, 15]])
 b = np.asarray([1,1,1,1])
 '''
+
 cexpherm = hermtocontU(A)
 clocksize = 2
 
