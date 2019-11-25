@@ -189,9 +189,13 @@ circ.barrier()
 ### get statevector for qbtox conditioned on qanc = 1 ###
 #########################################################
 
-statevec = getstatevector(circ)
+# is it possible to get the statevector/density matrix
+# traced out for qbtox, conditioned on qanc = 1 ??
 
-# make measurement operators ??
+# if it is we would be able to see the result without
+# all the measurement error and things would be much clearer
+
+statevec = getstatevector(circ)
 
 #####################################
 ### measure, analyze measurements ###
