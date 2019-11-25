@@ -22,6 +22,12 @@ def printstatevector(circ):
     result = job.result()
     print(result.get_statevector())
 
+def getstatevector(circ):
+    bkend = Aer.get_backend('statevector_simulator')
+    job = execute(circ, bkend)
+    result = job.result()
+    return result.get_statevector()
+
 def qft(circ, q, n):
     for j in range(n):
         for k in range(j):
@@ -96,9 +102,11 @@ def prepareb(vector,circ, qb):
 ####################################################
 
 # LANL Example
+
 A = np.asarray([[0.75, 0.25],\
                 [0.25, 0.75]])
 b = np.asarray([2,0]) 
+
 '''
 # From the paper, 'Quantum Circuit Design for Solving 
 # Linear Systems of Equations'
@@ -109,7 +117,7 @@ A = np.asarray([[15, 9, 5, -3],\
 b = np.asarray([1,1,1,1])
 '''
 cexpherm = hermtocontU(A)
-clocksize = 4
+clocksize = 2
 
 # qbtox size wont work if b and cepherm dimensions are not a power of 2
 # need to modify hermtocontU() and prepareb() to make sure they produce 
@@ -159,7 +167,7 @@ circ.barrier()
 
 # fidelity of answer goes up with r
 # probability of ancilla = 1 for post selection goes down with r
-r=6
+r=5
 for i in range(len(qclock)):
     circ.cry((2**(len(qclock)-1-i)*pi)/2**(r),qclock[i],qanc[0])
 circ.barrier()
@@ -177,9 +185,17 @@ for i in range(len(invUlist)):
     circ.unitary(invUlist[len(invUlist)-1-i], reglist)
 circ.barrier()
 
-################################
-### measure, analyze results ###
-################################
+#########################################################
+### get statevector for qbtox conditioned on qanc = 1 ###
+#########################################################
+
+statevec = getstatevector(circ)
+
+# make measurement operators ??
+
+#####################################
+### measure, analyze measurements ###
+#####################################
 circ.measure(qanc,canc)
 circ.measure(qbtox,cbtox)
 circ.measure(qclock,cclock)
@@ -216,22 +232,22 @@ for key in values.keys():
 '''
 
 
-# generalize this post-selection code to work for
-# all possible register sizes
+# Get all qubit probabilities, for comparison with Quirk
 print('\n\n')
-countpercent = np.zeros(shape=(4,1))
+countpercent = np.zeros(shape=(len(qanc)+len(qbtox)+len(qclock),1))
 totcounts = 0
 for key in counts.keys():
     keysp = key.split(' ')
     if keysp[0] == '1':
         totcounts = totcounts + counts[key]
         countpercent[0] = countpercent[0] + counts[key]
-        if keysp[1][0]== '1':
-            countpercent[1] = countpercent[1] + counts[key]
-        if keysp[1][1] == '1':
-            countpercent[2] = countpercent[2] + counts[key]
-        if keysp[2] == '1':
-            countpercent[3] = countpercent[3] + counts[key]
+        for i in range(len(keysp[1])):
+            if keysp[1][i]== '1':
+                countpercent[1+i] = countpercent[1+i] + counts[key]
+        for i in range(len(keysp[2])):
+            if keysp[2][i] == '1':
+                countpercent[1+len(keysp[1])+i] = countpercent[1+len(keysp[1])+i] + counts[key]
+
 countpercent=100*countpercent/totcounts
 print('probability of ancilla = 1 for post-selection: ', 100*totcounts/shots, '%')
 print('percent probabilities of qubits = 1, conditioned on ancilla = 1:\n', countpercent)
@@ -254,6 +270,7 @@ for i in range(np.shape(HHLans)[0]):
     print('{}|{}>'.format(HHLans[i][0],i), end=' ')
     if i < np.shape(HHLans)[0]-1:
         print('+', end=' ')
+
 print('\n-----------------------------------------------------------')
 print('Square root of these probabilities is proportional to (the magnitudes of) the exact solution, x:')
 print('|x,HHL> =', np.sqrt(HHLans.T)[0])
