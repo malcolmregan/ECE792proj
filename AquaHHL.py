@@ -48,23 +48,17 @@ params = {
         'name': 'statevector_simulator'
     }
 }
-'''
-params['input'] = {
-    'name': 'LinearSystemInput',
-    'matrix': matrix,
-    'vector': vector
-}
-'''
-params5 = params
-params5['algorithm'] = {
+
+
+params['algorithm'] = {
     'truncate_powerdim': False,
     'truncate_hermitian': False
 }
-params5['reciprocal'] = {
+params['reciprocal'] = {
     'name': 'Lookup',
     'negative_evals': True
 }
-params5['eigs'] = {
+params['eigs'] = {
     'expansion_mode': 'suzuki',
     'expansion_order': 2,
     'name': 'EigsQPE',
@@ -72,23 +66,25 @@ params5['eigs'] = {
     'num_ancillae': 2,#6
     'num_time_slices': 2#70
 }
-params5['initial_state'] = {
+params['initial_state'] = {
     'name': 'CUSTOM'
 }
-params5['iqft'] = {
+params['iqft'] = {
     'name': 'STANDARD'
 }
-params5['qft'] = {
+params['qft'] = {
     'name': 'STANDARD'
 }
 
 algo_input = LinearSystemInput(matrix=A, vector=b)
-hhl = HHL.init_params(params5, algo_input)
+hhl = HHL.init_params(params, algo_input)
 circ = hhl.construct_circuit()
 print(circ)
 
 backend = Aer.get_backend('statevector_simulator')
 quantum_instance = QuantumInstance(backend=backend)
 result = hhl.run(quantum_instance)
+for key in result.keys():
+    print(key, result[key])
 print("solution ", np.round(result['solution'], 5))
     

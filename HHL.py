@@ -187,7 +187,6 @@ for i in range(len(qclock)):
     circ.cry((2**(len(qclock)-1-i)*pi)/2**(r),qclock[i],qanc[0])
 circ.barrier()
 
-
 ####################
 ### Reverse QPE  ###         
 ####################
@@ -208,11 +207,12 @@ circ.barrier()
 #########################################################
 ### get statevector for qbtox conditioned on qanc = 1 ###
 #########################################################
+
 print('\n############################')
 print('### Statevector analysis ###')
 print('############################\n')
 '''
-# Wrong bit ordering
+# Wrong bit ordering?
 statevec = getstatevector(circ)
 statevec = statevec.reshape(len(statevec),1)
 binlen = (len(qclock)+len(qbtox)+len(qanc))
@@ -359,7 +359,6 @@ print('-----------------------------------------------------------')
 print('probability of ancilla = 1 for post-selection from measurement: ', 100*totcounts/shots, '%')
 #print('-----------------------------------------------------------')
 #print('percent probabilities of qubits = 1, conditioned on ancilla = 1:\n', countpercent)
-
 
 # get probabilities
 totcounts = 0
