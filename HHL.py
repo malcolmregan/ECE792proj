@@ -73,7 +73,7 @@ def hermtocontU(mat):
     # matrix hermitian
     if np.array_equal(mat, mat.conj().T):
         hermop = mat
-    T = 2 # how to pick T? 
+    T = 16 # how to pick T? 
     expherm = expm(2j*pi*hermop/T)
     
     ''' 
@@ -114,13 +114,13 @@ def prepareb(vector,circ, qb):
 ####################################################
 ### problem variables and circuit initialization ###
 ####################################################
-
+'''
 # LANL Example
 A = np.asarray([[0.75, 0.25],\
                 [0.25, 0.75]])
 b = np.asarray([2,0]) 
-
 '''
+
 # From the paper, 'Quantum Circuit Design for Solving 
 # Linear Systems of Equations'
 A = 0.25*np.asarray([[15, 9, 5, -3],\
@@ -128,10 +128,10 @@ A = 0.25*np.asarray([[15, 9, 5, -3],\
                      [5, 3, 15, -9],\
                      [-3, -5, -9, 15]])
 b = 0.5*np.asarray([1,1,1,1])
-'''
+
 
 cexpherm = hermtocontU(A)
-clocksize = 2
+clocksize = 4
 
 # qbtox size wont work if b and cepherm dimensions are not a power of 2
 # need to modify hermtocontU() and prepareb() to make sure they produce 
@@ -211,6 +211,8 @@ circ.barrier()
 print('\n############################')
 print('### Statevector analysis ###')
 print('############################\n')
+'''
+# Wrong bit ordering
 statevec = getstatevector(circ)
 statevec = statevec.reshape(len(statevec),1)
 binlen = (len(qclock)+len(qbtox)+len(qanc))
@@ -249,6 +251,46 @@ print('Solution Statevector:')
 for i in range(len(qbtoxstate)):
     print(qbtoxbinidx[i],qbtoxstate[i]*3)
 print('\n')
+'''
+statevec = getstatevector(circ)
+statevec = statevec.reshape(len(statevec),1)
+binlen = (len(qclock)+len(qbtox)+len(qanc))
+zeros='0'*binlen
+
+postselectionprob = 0
+postselectedvector = list()
+postselectedbinaryidx = list()
+
+print('Full Statevector:')
+for i in range(len(statevec)):
+    binary = str(bin(i))[2:]
+    if len(binary)<binlen:
+        binary = zeros[:-len(binary)]+binary
+    print(binary, statevec[i][0])
+    if binary[0]=='1':
+        postselectionprob=postselectionprob+\
+                np.sqrt(np.real(statevec[i][0])**2+\
+                np.imag(statevec[i][0])**2)
+        postselectedvector.append(statevec[i][0])
+        postselectedbinaryidx.append(binary)
+postselectedvector= postselectedvector/postselectionprob
+print('\n')
+
+print('Postselected Statevector (Postselection prob - {:.2f}%):'.format(postselectionprob*100))
+qbtoxstate = list()
+qbtoxbinidx = list()
+for i in range(len(postselectedvector)):
+    print(postselectedbinaryidx[i][1:],postselectedvector[i])
+    if postselectedbinaryidx[i][1:1+len(qclock)]=='0'*len(qclock):
+        qbtoxbinidx.append(postselectedbinaryidx[i][-len(qbtox):])
+        qbtoxstate.append(postselectedvector[i])
+print('\n')
+
+print('Solution Statevector:')
+for i in range(len(qbtoxstate)):
+    print(qbtoxbinidx[i],qbtoxstate[i])
+print('\n')
+
 
 #####################################
 ### measure, analyze measurements ###
