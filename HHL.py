@@ -5,6 +5,8 @@ from qiskit import Aer
 import numpy as np
 from math import pi
 from scipy.linalg import expm
+from qiskit.aqua.algorithms.single_sample.hhl import hhl
+np.set_printoptions(precision=5,linewidth=400)
 
 ############################
 ### function definitions ###
@@ -73,6 +75,20 @@ def hermtocontU(mat):
         hermop = mat
     T = 2 # how to pick T? 
     expherm = expm(2j*pi*hermop/T)
+    
+    ''' 
+    # one of the unitary operators from Quirk implementation of 4x4 example circuit
+    # for comparison with the above operators - exact up to 4 decimal places
+    eAitover8 = np.asarray([[0.1767592+0.4267675j,-0.1767709-0.4267956j,\
+            0.323234+0.0731928j,-0.6767777+0.0731976j],\
+            [-0.1767592-0.4267675j,0.1767709+0.4267956j,\
+            0.676799-0.0731928j,-0.3231894-0.0731976j],\
+            [0.3232573+0.073249j,0.6767544-0.0732538j,\
+            0.1767825+0.4267578j,0.1767942+0.4267859j],\
+            [-0.6767757+0.073249j,-0.3232126-0.0732538j,\
+            0.1767825+0.4267578j,0.1767942+0.4267859j]])
+    '''
+
     # add control
     M0 = np.asarray([[1,0],\
                      [0,0]])
@@ -80,8 +96,7 @@ def hermtocontU(mat):
                      [0,1]])
     I = np.eye(np.shape(hermop)[0])
     cexpherm = np.kron(M0,I)+np.kron(M1,expherm)
-
-    #what if cexpherm dimensions are not a power of 2?
+    
     return cexpherm
 
 def prepareb(vector,circ, qb):
@@ -167,15 +182,16 @@ circ.barrier()
 
 # fidelity of answer goes up with r
 # probability of ancilla = 1 for post selection goes down with r
-r=5
+r=6
 for i in range(len(qclock)):
-    print(2**(len(qclock)-1-i))
     circ.cry((2**(len(qclock)-1-i)*pi)/2**(r),qclock[i],qanc[0])
 circ.barrier()
+
 
 ####################
 ### Reverse QPE  ###         
 ####################
+
 qft(circ, qclock, len(qclock))
 circ.barrier()
 
@@ -192,22 +208,59 @@ circ.barrier()
 #########################################################
 ### get statevector for qbtox conditioned on qanc = 1 ###
 #########################################################
-
-# is it possible to get the statevector/density matrix
-# traced out for qbtox, conditioned on qanc = 1 ??
-
-# if it is we would be able to see the result without
-# all the measurement error and things would be much clearer
-
+print('\n############################')
+print('### Statevector analysis ###')
+print('############################\n')
 statevec = getstatevector(circ)
+statevec = statevec.reshape(len(statevec),1)
+binlen = (len(qclock)+len(qbtox)+len(qanc))
+zeros='0'*binlen
+
+postselectionprob = 0
+postselectedvector = np.zeros(shape=(int(len(statevec)/2),1),dtype=np.complex_)
+postselectedbinaryidx = list()
+
+print('Full Statevector:')
+for i in range(len(statevec)):
+    binary = str(bin(i))[2:]
+    if len(binary)<binlen:
+        binary = zeros[:-len(binary)]+binary
+    print(binary, statevec[i][0])
+    if binary[-1]=='1':
+        postselectionprob=postselectionprob+\
+                np.sqrt(np.real(statevec.copy()[i][0])**2+\
+                np.imag(statevec.copy()[i][0])**2)
+        postselectedvector[int((i-1)/2)] = statevec[i][0]
+        postselectedbinaryidx.append(binary)
+postselectedvector= postselectedvector/postselectionprob
+print('\n')
+
+print('Postselected Statevector (Postselection prob - {:.2f}%):'.format(postselectionprob*100))
+qbtoxstate = list()
+qbtoxbinidx = list()
+for i in range(len(postselectedvector)):
+    print(postselectedbinaryidx[i][0:-1],postselectedvector[i][0])
+    if postselectedbinaryidx[i][len(qbtox):len(qbtox)+len(qclock)]=='0'*len(qclock):
+        qbtoxbinidx.append(postselectedbinaryidx[i][:len(qbtox)])
+        qbtoxstate.append(postselectedvector[i][0])
+print('\n')
+
+print('Solution Statevector:')
+for i in range(len(qbtoxstate)):
+    print(qbtoxbinidx[i],qbtoxstate[i]*3)
+print('\n')
 
 #####################################
 ### measure, analyze measurements ###
 #####################################
+
 circ.measure(qanc,canc)
 circ.measure(qbtox,cbtox)
 circ.measure(qclock,cclock)
 
+print('\n###############')
+print('### Circuit ###')
+print('###############\n')
 print(circ)
 
 shots = 100000
@@ -241,7 +294,10 @@ for key in values.keys():
 
 
 # Get all qubit probabilities, for comparison with Quirk
-print('\n\n')
+print('\n############################')
+print('### Measurement analysis ###')
+print('############################\n')
+
 countpercent = np.zeros(shape=(len(qanc)+len(qbtox)+len(qclock),1))
 totcounts = 0
 for key in counts.keys():
@@ -257,9 +313,11 @@ for key in counts.keys():
                 countpercent[1+len(keysp[1])+i] = countpercent[1+len(keysp[1])+i] + counts[key]
 
 countpercent=100*countpercent/totcounts
-print('probability of ancilla = 1 for post-selection: ', 100*totcounts/shots, '%')
-print('percent probabilities of qubits = 1, conditioned on ancilla = 1:\n', countpercent)
-print('\n\n')
+print('-----------------------------------------------------------')
+print('probability of ancilla = 1 for post-selection from measurement: ', 100*totcounts/shots, '%')
+#print('-----------------------------------------------------------')
+#print('percent probabilities of qubits = 1, conditioned on ancilla = 1:\n', countpercent)
+
 
 # get probabilities
 totcounts = 0
