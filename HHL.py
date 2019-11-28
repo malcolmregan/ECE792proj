@@ -66,14 +66,13 @@ def binfractodec(string):
         number = number + int(string[len(string)-1-i])*2**(-i-1)
     return number
 
-def hermtocontU(mat):
+def hermtocontU(mat,T):
     # takes uncontrolled matrix
     # must be hermitian currently
     # - add code to make non-hermitian
     # matrix hermitian
     if np.array_equal(mat, mat.conj().T):
-        hermop = mat
-    T = 16 # how to pick T? 
+        hermop = mat 
     expherm = expm(2j*pi*hermop/T)
     
     ''' 
@@ -114,12 +113,15 @@ def prepareb(vector,circ, qb):
 ####################################################
 ### problem variables and circuit initialization ###
 ####################################################
-'''
+
 # LANL Example
 A = np.asarray([[0.75, 0.25],\
                 [0.25, 0.75]])
-b = np.asarray([2,0]) 
-'''
+b = np.asarray([2,0])
+T = 2
+clocksize = 2
+r=4
+
 
 # From the paper, 'Quantum Circuit Design for Solving 
 # Linear Systems of Equations'
@@ -128,10 +130,11 @@ A = 0.25*np.asarray([[15, 9, 5, -3],\
                      [5, 3, 15, -9],\
                      [-3, -5, -9, 15]])
 b = 0.5*np.asarray([1,1,1,1])
-
-
-cexpherm = hermtocontU(A)
+T = 16
 clocksize = 4
+r=6
+
+cexpherm = hermtocontU(A,T)
 
 # qbtox size wont work if b and cepherm dimensions are not a power of 2
 # need to modify hermtocontU() and prepareb() to make sure they produce 
@@ -182,9 +185,9 @@ circ.barrier()
 
 # fidelity of answer goes up with r
 # probability of ancilla = 1 for post selection goes down with r
-r=6
 for i in range(len(qclock)):
-    circ.cry((2**(len(qclock)-1-i)*pi)/2**(r),qclock[i],qanc[0])
+    circ.cry((2**(i)*pi)/2**(r),qclock[i],qanc[0])
+    #circ.cry((2**(len(qclock)-1-i)*pi)/2**(r),qclock[i],qanc[0])
 circ.barrier()
 
 ####################
