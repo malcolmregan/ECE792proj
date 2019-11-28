@@ -75,19 +75,6 @@ def hermtocontU(mat,T):
         hermop = mat 
     expherm = expm(2j*pi*hermop/T)
     
-    ''' 
-    # one of the unitary operators from Quirk implementation of 4x4 example circuit
-    # for comparison with the above operators - exact up to 4 decimal places
-    eAitover8 = np.asarray([[0.1767592+0.4267675j,-0.1767709-0.4267956j,\
-            0.323234+0.0731928j,-0.6767777+0.0731976j],\
-            [-0.1767592-0.4267675j,0.1767709+0.4267956j,\
-            0.676799-0.0731928j,-0.3231894-0.0731976j],\
-            [0.3232573+0.073249j,0.6767544-0.0732538j,\
-            0.1767825+0.4267578j,0.1767942+0.4267859j],\
-            [-0.6767757+0.073249j,-0.3232126-0.0732538j,\
-            0.1767825+0.4267578j,0.1767942+0.4267859j]])
-    '''
-
     # add control
     M0 = np.asarray([[1,0],\
                      [0,0]])
@@ -113,26 +100,40 @@ def prepareb(vector,circ, qb):
 ####################################################
 ### problem variables and circuit initialization ###
 ####################################################
-
+'''
 # LANL Example
 A = np.asarray([[0.75, 0.25],\
                 [0.25, 0.75]])
 b = np.asarray([2,0])
 T = 2
 clocksize = 2
-r=4
-
-
+r=10
+'''
+'''
 # From the paper, 'Quantum Circuit Design for Solving 
 # Linear Systems of Equations'
-A = 0.25*np.asarray([[15, 9, 5, -3],\
-                     [9, 15, 3, -5],\
-                     [5, 3, 15, -9],\
+A = 0.25*np.asarray([[15,  9, 5,  -3],\
+                     [9,  15,  3, -5],\
+                     [5,   3, 15, -9],\
                      [-3, -5, -9, 15]])
 b = 0.5*np.asarray([1,1,1,1])
 T = 16
 clocksize = 4
 r=6
+'''
+
+# Example with matrix that doesn't have eigenvalues
+# that are a power of 0.5 but that are an exact
+# sum of low powers of 0.5
+A = np.asarray([[0.375,   0],
+                  [0,   0.375]])
+b = np.asarray([1,1])
+T=2
+clocksize=4
+r=10
+
+w,v=np.linalg.eig(A)
+print(w/T,v)
 
 cexpherm = hermtocontU(A,T)
 
@@ -186,10 +187,16 @@ circ.barrier()
 # fidelity of answer goes up with r
 # probability of ancilla = 1 for post selection goes down with r
 for i in range(len(qclock)):
-    circ.cry((2**(i)*pi)/2**(r),qclock[i],qanc[0])
-    #circ.cry((2**(len(qclock)-1-i)*pi)/2**(r),qclock[i],qanc[0])
+    circ.mcry(pi/((2**(-i))*(2**r)),[qclock[i]],qanc[0],q_ancillae=None)
 circ.barrier()
-
+'''
+for i in range(len(qclock)):
+    for j in range(len(qclock)):
+        if i != j:
+            circ.mcry(-pi/((2**(-i))*(2**r)),[qclock[i],qclock[j]],qanc[0],q_ancillae=None)
+            circ.mcry(-pi/((2**(-j))*(2**r)),[qclock[i],qclock[j]],qanc[0],q_ancillae=None)
+            circ.mcry(pi/((2**(-i)+2**(-j))*(2**r)),[qclock[i],qclock[j]],qanc[0],q_ancillae=None)
+'''
 ####################
 ### Reverse QPE  ###         
 ####################
@@ -214,47 +221,7 @@ circ.barrier()
 print('\n############################')
 print('### Statevector analysis ###')
 print('############################\n')
-'''
-# Wrong bit ordering?
-statevec = getstatevector(circ)
-statevec = statevec.reshape(len(statevec),1)
-binlen = (len(qclock)+len(qbtox)+len(qanc))
-zeros='0'*binlen
 
-postselectionprob = 0
-postselectedvector = np.zeros(shape=(int(len(statevec)/2),1),dtype=np.complex_)
-postselectedbinaryidx = list()
-
-print('Full Statevector:')
-for i in range(len(statevec)):
-    binary = str(bin(i))[2:]
-    if len(binary)<binlen:
-        binary = zeros[:-len(binary)]+binary
-    print(binary, statevec[i][0])
-    if binary[-1]=='1':
-        postselectionprob=postselectionprob+\
-                np.sqrt(np.real(statevec.copy()[i][0])**2+\
-                np.imag(statevec.copy()[i][0])**2)
-        postselectedvector[int((i-1)/2)] = statevec[i][0]
-        postselectedbinaryidx.append(binary)
-postselectedvector= postselectedvector/postselectionprob
-print('\n')
-
-print('Postselected Statevector (Postselection prob - {:.2f}%):'.format(postselectionprob*100))
-qbtoxstate = list()
-qbtoxbinidx = list()
-for i in range(len(postselectedvector)):
-    print(postselectedbinaryidx[i][0:-1],postselectedvector[i][0])
-    if postselectedbinaryidx[i][len(qbtox):len(qbtox)+len(qclock)]=='0'*len(qclock):
-        qbtoxbinidx.append(postselectedbinaryidx[i][:len(qbtox)])
-        qbtoxstate.append(postselectedvector[i][0])
-print('\n')
-
-print('Solution Statevector:')
-for i in range(len(qbtoxstate)):
-    print(qbtoxbinidx[i],qbtoxstate[i]*3)
-print('\n')
-'''
 statevec = getstatevector(circ)
 statevec = statevec.reshape(len(statevec),1)
 binlen = (len(qclock)+len(qbtox)+len(qanc))
@@ -264,12 +231,12 @@ postselectionprob = 0
 postselectedvector = list()
 postselectedbinaryidx = list()
 
-print('Full Statevector:')
+#print('Full Statevector:')
 for i in range(len(statevec)):
     binary = str(bin(i))[2:]
     if len(binary)<binlen:
         binary = zeros[:-len(binary)]+binary
-    print(binary, statevec[i][0])
+    #print(binary, statevec[i][0])
     if binary[0]=='1':
         postselectionprob=postselectionprob+\
                 np.sqrt(np.real(statevec[i][0])**2+\
@@ -283,7 +250,7 @@ print('Postselected Statevector (Postselection prob - {:.2f}%):'.format(postsele
 qbtoxstate = list()
 qbtoxbinidx = list()
 for i in range(len(postselectedvector)):
-    print(postselectedbinaryidx[i][1:],postselectedvector[i])
+    #print(postselectedbinaryidx[i][1:],postselectedvector[i])
     if postselectedbinaryidx[i][1:1+len(qclock)]=='0'*len(qclock):
         qbtoxbinidx.append(postselectedbinaryidx[i][-len(qbtox):])
         qbtoxstate.append(postselectedvector[i])
@@ -314,31 +281,6 @@ job = execute(circ, bkend, shots=shots)
 result = job.result()
 counts = result.get_counts(circ)
 
-'''
-#QPE analysis
-values = dict()
-vectors = list()
-for key in counts.keys():
-    if key.split(' ')[1] not in values:
-        values[key.split(' ')[1]]=np.zeros(shape=(2**len(qbtox),1))
-        print(key, counts[key])
-print('\n')
-
-for key in counts.keys():
-    val = key.split(' ')[1]
-    count = counts[key]
-    index = bintoint(key.split(' ')[2])
-    values[val][index] = count 
-
-for key in values.keys():
-    values[key] = values[key]/np.sum(values[key])
-    print(key, binfractodec(key), \
-            np.around(np.exp(2j*pi*binfractodec(key)),decimals=4),\
-            values[key])
-'''
-
-
-# Get all qubit probabilities, for comparison with Quirk
 print('\n############################')
 print('### Measurement analysis ###')
 print('############################\n')
@@ -398,3 +340,8 @@ print('-----------------------------------------------------------')
 print('Now we can show that |x,HHL> is proportional to the magnitudes of elements of x')
 print('C|x,HHL> =', np.sqrt(HHLans.T)[0]*np.mean(np.abs(actualans)/np.sqrt(HHLans)), 'is approximately equal to absolute value of x\'s elements,', np.abs(actualans.T[0]))
 print('-----------------------------------------------------------')
+
+C = np.mean(actualans/np.real(np.asarray(qbtoxstate).reshape(len(qbtoxstate),1)))
+print('actual:\n',actualans,'\nstatevector:\n', np.asarray(qbtoxstate).reshape(len(qbtoxstate),1))
+print('C:\n', C,'\nbnorm*T:\n',bnormfactor*T)
+print('statevector times C:\n',np.asarray(qbtoxstate).reshape(len(qbtoxstate),1)*C)
