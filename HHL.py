@@ -100,15 +100,15 @@ def prepareb(vector,circ, qb):
 ####################################################
 ### problem variables and circuit initialization ###
 ####################################################
-'''
+
 # LANL Example
 A = np.asarray([[0.75, 0.25],\
                 [0.25, 0.75]])
 b = np.asarray([2,0])
 T = 2
 clocksize = 2
-r=10
-'''
+r=5
+
 '''
 # From the paper, 'Quantum Circuit Design for Solving 
 # Linear Systems of Equations'
@@ -121,16 +121,19 @@ T = 16
 clocksize = 4
 r=6
 '''
-
+'''
 # Example with matrix that doesn't have eigenvalues
 # that are a power of 0.5 but that are an exact
 # sum of low powers of 0.5
-A = np.asarray([[0.375,   0],
-                  [0,   0.375]])
+A = 2*np.asarray([[0.375,   0],
+                  [0,   0.5]])
 b = np.asarray([1,1])
 T=2
 clocksize=4
-r=10
+r=5
+'''
+
+actualans=np.matmul(np.linalg.inv(A),np.asarray(b).reshape(len(b),1))
 
 w,v=np.linalg.eig(A)
 print(w/T,v)
@@ -197,6 +200,11 @@ for i in range(len(qclock)):
             circ.mcry(-pi/((2**(-j))*(2**r)),[qclock[i],qclock[j]],qanc[0],q_ancillae=None)
             circ.mcry(pi/((2**(-i)+2**(-j))*(2**r)),[qclock[i],qclock[j]],qanc[0],q_ancillae=None)
 '''
+# This works for one with eigenvalue 0.5
+# whats wrong with the i,j loop above?
+#circ.mcry(pi/(2**(-0)*(2**r)),[qclock[0]],qanc[0],q_ancillae=None)
+#circ.mcry(pi/((2**(-1)+2**(-2))*(2**r)),[qclock[1],qclock[2]],qanc[0],q_ancillae=None)
+
 ####################
 ### Reverse QPE  ###         
 ####################
@@ -261,6 +269,10 @@ for i in range(len(qbtoxstate)):
     print(qbtoxbinidx[i],qbtoxstate[i])
 print('\n')
 
+C = np.mean(actualans/np.real(np.asarray(qbtoxstate).reshape(len(qbtoxstate),1)))
+print('actual:\n',actualans,'\nstatevector:\n', np.asarray(qbtoxstate).reshape(len(qbtoxstate),1))
+print('C:\n', C,'\nbnorm*T:\n',bnormfactor*T)
+print('statevector times C:\n',np.asarray(qbtoxstate).reshape(len(qbtoxstate),1)*C)
 
 #####################################
 ### measure, analyze measurements ###
@@ -285,6 +297,9 @@ print('\n############################')
 print('### Measurement analysis ###')
 print('############################\n')
 
+print('Need to fix this part')
+
+'''
 countpercent = np.zeros(shape=(len(qanc)+len(qbtox)+len(qclock),1))
 totcounts = 0
 for key in counts.keys():
@@ -340,8 +355,4 @@ print('-----------------------------------------------------------')
 print('Now we can show that |x,HHL> is proportional to the magnitudes of elements of x')
 print('C|x,HHL> =', np.sqrt(HHLans.T)[0]*np.mean(np.abs(actualans)/np.sqrt(HHLans)), 'is approximately equal to absolute value of x\'s elements,', np.abs(actualans.T[0]))
 print('-----------------------------------------------------------')
-
-C = np.mean(actualans/np.real(np.asarray(qbtoxstate).reshape(len(qbtoxstate),1)))
-print('actual:\n',actualans,'\nstatevector:\n', np.asarray(qbtoxstate).reshape(len(qbtoxstate),1))
-print('C:\n', C,'\nbnorm*T:\n',bnormfactor*T)
-print('statevector times C:\n',np.asarray(qbtoxstate).reshape(len(qbtoxstate),1)*C)
+'''
