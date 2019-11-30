@@ -92,7 +92,7 @@ def prepareb(vector,circ, qb):
     normfactor = np.sqrt(np.sum(vector**2))
     state = vector/normfactor
 
-    circ.initialize(state, [qbtox[i] for i in range(len(qb))])
+    circ.initialize(state, [qb[i] for i in range(len(qb))])
     circ.barrier()
 
     return normfactor
@@ -100,7 +100,7 @@ def prepareb(vector,circ, qb):
 ####################################################
 ### problem variables and circuit initialization ###
 ####################################################
-
+'''
 # LANL Example
 A = np.asarray([[0.75, 0.25],\
                 [0.25, 0.75]])
@@ -108,8 +108,8 @@ b = np.asarray([2,0])
 T = 2
 clocksize = 2
 r=5
-
 '''
+
 # From the paper, 'Quantum Circuit Design for Solving 
 # Linear Systems of Equations'
 A = 0.25*np.asarray([[15,  9, 5,  -3],\
@@ -120,13 +120,13 @@ b = 0.5*np.asarray([1,1,1,1])
 T = 16
 clocksize = 4
 r=6
-'''
+
 '''
 # Example with matrix that doesn't have eigenvalues
 # that are a power of 0.5 but that are an exact
 # sum of low powers of 0.5
 A = 2*np.asarray([[0.375,   0],
-                  [0,   0.5]])
+                 [0,     0.25]])
 b = np.asarray([1,1])
 T=2
 clocksize=4
@@ -134,17 +134,55 @@ r=5
 '''
 
 actualans=np.matmul(np.linalg.inv(A),np.asarray(b).reshape(len(b),1))
-
-w,v=np.linalg.eig(A)
-print(w/T,v)
+eigval,eigvec = np.linalg.eig(A)
+#print(eigval/T,eigvec)
 
 cexpherm = hermtocontU(A,T)
 
-# qbtox size wont work if b and cepherm dimensions are not a power of 2
-# need to modify hermtocontU() and prepareb() to make sure they produce 
-# stuff with dimension 2^n by 2^n. this may change how the result is to be
-# interpreted, so hermtocontU() should also return flags indicating
-# how to proceed in later parts of the algorithm
+####################################
+### Run QPE to learn eigenvalues ###
+####################################
+
+qpeclock = QuantumRegister(clocksize,'qpeclk')
+qpeb = QuantumRegister(np.log2(np.shape(b)[0]),'qpebtox')
+qpecclock = ClassicalRegister(clocksize, 'qpecclk')
+qpecb = ClassicalRegister(np.log2(np.shape(b)[0]),'qpecb')
+qpecirc = QuantumCircuit(qpeclock, qpeb, qpecclock, qpecb)
+
+prepareb(b,qpecirc,qpeb)
+qpecirc.barrier()
+
+qpecirc.h(qpeclock)
+qpecirc.barrier()
+
+Ulist,_ = getUs(len(qpeclock), cexpherm)
+for i in range(len(Ulist)):
+    reglist = [qpeb[k] for k in range(len(qpeb))]
+    reglist.append(qpeclock[i])
+    qpecirc.unitary(Ulist[i], reglist)
+qpecirc.barrier()
+
+iqft(qpecirc, qpeclock, len(qpeclock))
+qpecirc.barrier()
+
+qpecirc.measure(qpeclock,qpecclock)
+qpecirc.measure(qpeb, qpecb)
+
+shots = 100000
+bkend = Aer.get_backend('qasm_simulator')
+job = execute(qpecirc, bkend, shots=shots)
+result = job.result()
+counts = result.get_counts(qpecirc)
+
+
+QPEeigvals = list()
+for key in counts.keys():
+    QPEeigvals.append(key[-len(qpeclock):])
+QPEeigvals = np.unique(QPEeigvals)
+
+###########
+### HHL ###
+###########
 
 qclock = QuantumRegister(clocksize,'clk')
 qbtox = QuantumRegister(np.log2(np.shape(b)[0]),'btox')
@@ -158,7 +196,7 @@ circ = QuantumCircuit(qbtox,qclock,qanc,cbtox,cclock,canc)
 bnormfactor = prepareb(b,circ,qbtox)
 
 ################################
-### quantum phase estimation ###
+### Quantum Phase Estimation ###
 ################################
 
 # should quantum phase estimation be run
@@ -184,21 +222,30 @@ circ.barrier()
 ### rotation part ###
 #####################
 
-# need to understand role of registers M and L
-# and implement them
+rotationidxs = list()
+for val in QPEeigvals:
+    rotationidxs.append([len(qclock)-idx-1 for idx, char in enumerate(val) if char == '1'])
+rotationidxs.sort(key=len)    
+for idxs in rotationidxs:
+    angle = 0
+    for i in idxs:
+        angle = angle + 2**(-i-1)
+    circ.mcry(1/(angle*(2**r)),[qclock[k] for k in idxs],qanc[0],q_ancillae=None)
+    #print('doing angle {} controlled by qubits {}'.format(angle, idxs))
+    # find rotationidxs sublists that consist entirely of elements
+    # contained in the current sublist
+    # only reverse those that have length that are length(current sublist)-1
+    for ridxs in rotationidxs:
+        if len(ridxs)==len(idxs)-1:
+            if set(ridxs).issubset(set(idxs)):
+                angle=0
+                for j in ridxs:
+                    angle = angle + 2**(-j-1)
+                circ.mcry(-1/(angle*(2**r)),[qclock[k] for k in idxs],qanc[0],q_ancillae=None)
+                #print('reversing angle {} controlled by qubits {}'.format(angle, idxs))
 
 # fidelity of answer goes up with r
 # probability of ancilla = 1 for post selection goes down with r
-for i in range(len(qclock)):
-    circ.mcry(1/((2**(-i))*(2**r)),[qclock[i]],qanc[0],q_ancillae=None)
-circ.barrier()
-
-# for any two == 1
-for i in range(len(qclock)):
-    for j in range(i+1,len(qclock)):
-        circ.mcry(-1/((2**(-i))*(2**r)),[qclock[i],qclock[j]],qanc[0],q_ancillae=None)
-        circ.mcry(-1/((2**(-j))*(2**r)),[qclock[i],qclock[j]],qanc[0],q_ancillae=None)
-        circ.mcry(1/((2**(-i)+2**(-j))*(2**r)),[qclock[i],qclock[j]],qanc[0],q_ancillae=None)
 
 ####################
 ### Reverse QPE  ###         
@@ -282,6 +329,12 @@ print('### Circuit ###')
 print('###############\n')
 print(circ)
 
+shots = 100000
+bkend = Aer.get_backend('qasm_simulator')
+job = execute(circ, bkend, shots=shots)
+result = job.result()
+counts = result.get_counts(circ)
+
 print('\n############################')
 print('### Measurement analysis ###')
 print('############################\n')
@@ -291,7 +344,6 @@ bkend = Aer.get_backend('qasm_simulator')
 job = execute(circ, bkend, shots=shots)
 result = job.result()
 counts = result.get_counts(circ)
-
 
 print('Need to fix this part')
 

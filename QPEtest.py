@@ -117,7 +117,9 @@ def prepareb(vector,circ, qb):
 # LANL Example
 A = np.asarray([[0.75, 0.25],\
                 [0.25, 0.75]])
-b = np.asarray([1,-1]) 
+b = 1/np.sqrt(2)*np.asarray([1,1]) 
+w,v = np.linalg.eig(A)
+print(w,v)
 
 '''
 # From the paper, 'Quantum Circuit Design for Solving 
@@ -130,6 +132,7 @@ b = 0.5*np.asarray([1,1,1,1])
 '''
 
 T = 2
+
 cexpherm = hermtocontU(A,T)
 clocksize = 2
 
