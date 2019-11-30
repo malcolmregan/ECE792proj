@@ -100,16 +100,16 @@ def prepareb(vector,circ, qb):
 ####################################################
 ### problem variables and circuit initialization ###
 ####################################################
-'''
+
 # LANL Example
 A = np.asarray([[0.75, 0.25],\
                 [0.25, 0.75]])
 b = np.asarray([2,0])
 T = 2
 clocksize = 2
-r=5
-'''
+r=6
 
+'''
 # From the paper, 'Quantum Circuit Design for Solving 
 # Linear Systems of Equations'
 A = 0.25*np.asarray([[15,  9, 5,  -3],\
@@ -120,7 +120,7 @@ b = 0.5*np.asarray([1,1,1,1])
 T = 16
 clocksize = 4
 r=6
-
+'''
 '''
 # Example with matrix that doesn't have eigenvalues
 # that are a power of 0.5 but that are an exact
@@ -135,13 +135,13 @@ r=5
 
 actualans=np.matmul(np.linalg.inv(A),np.asarray(b).reshape(len(b),1))
 eigval,eigvec = np.linalg.eig(A)
-#print(eigval/T,eigvec)
+cond = max(eigval)/min(eigval)
 
 cexpherm = hermtocontU(A,T)
 
-####################################
-### Run QPE to learn eigenvalues ###
-####################################
+#######################################
+### Run QPE and measure eigenvalues ###
+#######################################
 
 qpeclock = QuantumRegister(clocksize,'qpeclk')
 qpeb = QuantumRegister(np.log2(np.shape(b)[0]),'qpebtox')
@@ -149,7 +149,7 @@ qpecclock = ClassicalRegister(clocksize, 'qpecclk')
 qpecb = ClassicalRegister(np.log2(np.shape(b)[0]),'qpecb')
 qpecirc = QuantumCircuit(qpeclock, qpeb, qpecclock, qpecb)
 
-prepareb(b,qpecirc,qpeb)
+bnormfactor = prepareb(b,qpecirc,qpeb)
 qpecirc.barrier()
 
 qpecirc.h(qpeclock)
@@ -199,12 +199,6 @@ bnormfactor = prepareb(b,circ,qbtox)
 ### Quantum Phase Estimation ###
 ################################
 
-# should quantum phase estimation be run
-# first and then eigenvalues measured 
-# to get the condition number
-# not efficient but would be better for 
-# understanding/explaining how things work
-
 circ.h(qclock)
 circ.barrier()
 
@@ -226,12 +220,12 @@ rotationidxs = list()
 for val in QPEeigvals:
     rotationidxs.append([len(qclock)-idx-1 for idx, char in enumerate(val) if char == '1'])
 rotationidxs.sort(key=len)    
+
 for idxs in rotationidxs:
     angle = 0
     for i in idxs:
         angle = angle + 2**(-i-1)
     circ.mcry(1/(angle*(2**r)),[qclock[k] for k in idxs],qanc[0],q_ancillae=None)
-    #print('doing angle {} controlled by qubits {}'.format(angle, idxs))
     # find rotationidxs sublists that consist entirely of elements
     # contained in the current sublist
     # only reverse those that have length that are length(current sublist)-1
@@ -242,7 +236,6 @@ for idxs in rotationidxs:
                 for j in ridxs:
                     angle = angle + 2**(-j-1)
                 circ.mcry(-1/(angle*(2**r)),[qclock[k] for k in idxs],qanc[0],q_ancillae=None)
-                #print('reversing angle {} controlled by qubits {}'.format(angle, idxs))
 
 # fidelity of answer goes up with r
 # probability of ancilla = 1 for post selection goes down with r
@@ -313,7 +306,7 @@ print('\n')
 
 C = np.mean(actualans/np.real(np.asarray(qbtoxstate).reshape(len(qbtoxstate),1)))
 print('actual:\n',actualans,'\nstatevector:\n', np.asarray(qbtoxstate).reshape(len(qbtoxstate),1))
-print('C:\n', C,'\nbnorm*T:\n',bnormfactor*T)
+print('C:\n', C)
 print('statevector times C:\n',np.asarray(qbtoxstate).reshape(len(qbtoxstate),1)*C)
 
 #####################################
