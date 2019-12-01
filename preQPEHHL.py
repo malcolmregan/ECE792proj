@@ -12,6 +12,67 @@ np.set_printoptions(precision=5,linewidth=400)
 ### function definitions ###
 ############################
 
+def userinput():
+    b = 0
+    r = 0
+    clocksize = 0
+    T = 0
+    A = input('Enter A, an NxN hermitian matrix as list, or enter nothing to run a default example: ') 
+    if A is '':
+        print('Running default example')
+        A = None
+    elif not np.array_equal(np.asarray(A), np.asarray(A).conj().T):
+        print('A not hermitian, running default example')
+        A = None
+    if A is not None:
+        A = np.asarray(A)
+        b = np.asarray(input('Enter b, a vector of length N as list: '))
+        r = input('Enter r, denoting how small eigenvalue-controlled rotations will be (angle proportional to 2^(-r)): ')
+        T = input('Enter T, such that eigenvalues of A/T are all less than 1: ')
+        clocksize = input('Enter QPE clocksize: ')
+    
+    return A, b, r, T, clocksize
+
+def defaultprograms():
+    num = '1'
+    num = input('Select example:\n\
+            [1] LANL example\n\
+            [2] Example from \'Quantum Circuit Design for Linear Systems of Eqns\' paper\n\
+            [3] Example with eigenvalues 0.375 and 0.25\n>> ')
+    if num == '1':
+        # LANL Example
+        A = np.asarray([[0.75, 0.25],\
+                        [0.25, 0.75]])
+        b = np.asarray([2,0])
+        T = 2
+        clocksize = 2
+        r=10
+
+    if num == '2':
+        # From the paper, 'Quantum Circuit Design for Solving
+        # Linear Systems of Equations'
+        A = 0.25*np.asarray([[15,  9, 5,  -3],\
+                             [9,  15,  3, -5],\
+                             [5,   3, 15, -9],\
+                             [-3, -5, -9, 15]])
+        b = 0.5*np.asarray([1,1,1,1])
+        T = 16
+        clocksize = 4
+        r=6
+    
+    if num == '3':
+        # Example with matrix that doesn't have eigenvalues
+        # that are a power of 0.5 but that are an exact
+        # sum of low powers of 0.5
+        A = 2*np.asarray([[0.375,   0],
+                          [0,    0.25]])
+        b = np.asarray([1,1])
+        T=2
+        clocksize=4
+        r=5
+
+    return A, b, r, T, clocksize
+
 def printcircuitunitary(circ):
     bkend = Aer.get_backend('unitary_simulator')
     job =execute(circ,bkend)
@@ -101,42 +162,14 @@ def prepareb(vector,circ, qb):
 ### problem variables and circuit initialization ###
 ####################################################
 
-# LANL Example
-A = np.asarray([[0.75, 0.25],\
-                [0.25, 0.75]])
-b = np.asarray([2,0])
-T = 2
-clocksize = 2
-r=6
+A, b, r, T, clocksize = userinput()
 
-'''
-# From the paper, 'Quantum Circuit Design for Solving 
-# Linear Systems of Equations'
-A = 0.25*np.asarray([[15,  9, 5,  -3],\
-                     [9,  15,  3, -5],\
-                     [5,   3, 15, -9],\
-                     [-3, -5, -9, 15]])
-b = 0.5*np.asarray([1,1,1,1])
-T = 16
-clocksize = 4
-r=6
-'''
-'''
-# Example with matrix that doesn't have eigenvalues
-# that are a power of 0.5 but that are an exact
-# sum of low powers of 0.5
-A = 2*np.asarray([[0.375,   0],
-                 [0,     0.25]])
-b = np.asarray([1,1])
-T=2
-clocksize=4
-r=5
-'''
+if A == None:
+    A, b, r, T, clocksize = defaultprograms()
 
 actualans=np.matmul(np.linalg.inv(A),np.asarray(b).reshape(len(b),1))
 eigval,eigvec = np.linalg.eig(A)
 cond = max(eigval)/min(eigval)
-
 cexpherm = hermtocontU(A,T)
 
 #######################################
@@ -173,7 +206,6 @@ bkend = Aer.get_backend('qasm_simulator')
 job = execute(qpecirc, bkend, shots=shots)
 result = job.result()
 counts = result.get_counts(qpecirc)
-
 
 QPEeigvals = list()
 for key in counts.keys():
@@ -236,6 +268,7 @@ for idxs in rotationidxs:
                 for j in ridxs:
                     angle = angle + 2**(-j-1)
                 circ.mcry(-1/(angle*(2**r)),[qclock[k] for k in idxs],qanc[0],q_ancillae=None)
+circ.barrier()
 
 # fidelity of answer goes up with r
 # probability of ancilla = 1 for post selection goes down with r
@@ -268,32 +301,33 @@ print('############################\n')
 statevec = getstatevector(circ)
 statevec = statevec.reshape(len(statevec),1)
 binlen = (len(qclock)+len(qbtox)+len(qanc))
-zeros='0'*binlen
+zeros = '0'*binlen
 
 postselectionprob = 0
 postselectedvector = list()
 postselectedbinaryidx = list()
 
-#print('Full Statevector:')
+print('Full Statevector:')
 for i in range(len(statevec)):
     binary = str(bin(i))[2:]
     if len(binary)<binlen:
         binary = zeros[:-len(binary)]+binary
-    #print(binary, statevec[i][0])
+    print(binary, statevec[i][0])
     if binary[0]=='1':
         postselectionprob=postselectionprob+\
                 np.sqrt(np.real(statevec[i][0])**2+\
                 np.imag(statevec[i][0])**2)
         postselectedvector.append(statevec[i][0])
         postselectedbinaryidx.append(binary)
-postselectedvector= postselectedvector/postselectionprob
+normfactor = np.sqrt(np.sum(np.asarray(postselectedvector)**2))
+postselectedvector= postselectedvector/normfactor
 print('\n')
 
 print('Postselected Statevector (Postselection prob - {:.2f}%):'.format(postselectionprob*100))
 qbtoxstate = list()
 qbtoxbinidx = list()
 for i in range(len(postselectedvector)):
-    #print(postselectedbinaryidx[i][1:],postselectedvector[i])
+    print(postselectedbinaryidx[i][1:],postselectedvector[i])
     if postselectedbinaryidx[i][1:1+len(qclock)]=='0'*len(qclock):
         qbtoxbinidx.append(postselectedbinaryidx[i][-len(qbtox):])
         qbtoxstate.append(postselectedvector[i])
@@ -306,7 +340,7 @@ print('\n')
 
 C = np.mean(actualans/np.real(np.asarray(qbtoxstate).reshape(len(qbtoxstate),1)))
 print('actual:\n',actualans,'\nstatevector:\n', np.asarray(qbtoxstate).reshape(len(qbtoxstate),1))
-print('C:\n', C)
+print('C:\n', bnormfactor/C)
 print('statevector times C:\n',np.asarray(qbtoxstate).reshape(len(qbtoxstate),1)*C)
 
 #####################################
