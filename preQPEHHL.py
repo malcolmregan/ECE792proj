@@ -37,7 +37,7 @@ def defaultprograms():
     num = '1'
     num = input('Select example:\n\
             [1] LANL example\n\
-            [2] Example from \'Quantum Circuit Design for Linear Systems of Eqns\' paper\n\
+            [2] Example from \'Quantum Circuit Design for Solving Linear Systems of Eqns\' paper\n\
             [3] Example with eigenvalues 0.375 and 0.25\n>> ')
     if num == '1':
         # LANL Example
@@ -166,6 +166,12 @@ A, b, r, T, clocksize = userinput()
 
 if A == None:
     A, b, r, T, clocksize = defaultprograms()
+
+print('A: \n',A)
+print('b: \n',b)
+print('T: ',T)
+print('QPE Depth: ', clocksize)
+print('r: ', r)
 
 actualans=np.matmul(np.linalg.inv(A),np.asarray(b).reshape(len(b),1))
 eigval,eigvec = np.linalg.eig(A)
@@ -338,10 +344,10 @@ for i in range(len(qbtoxstate)):
     print(qbtoxbinidx[i],qbtoxstate[i])
 print('\n')
 
-C = np.mean(actualans/np.real(np.asarray(qbtoxstate).reshape(len(qbtoxstate),1)))
+s = np.mean(actualans/np.real(np.asarray(qbtoxstate).reshape(len(qbtoxstate),1)))
 print('actual:\n',actualans,'\nstatevector:\n', np.asarray(qbtoxstate).reshape(len(qbtoxstate),1))
-print('C:\n', bnormfactor/C)
-print('statevector times C:\n',np.asarray(qbtoxstate).reshape(len(qbtoxstate),1)*C)
+print('s:\n', s)
+print('statevector times s:\n',np.asarray(qbtoxstate).reshape(len(qbtoxstate),1)*s)
 
 #####################################
 ### measure, analyze measurements ###
