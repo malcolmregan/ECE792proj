@@ -51,7 +51,7 @@ def defaultprograms():
         b = np.asarray([2,0])
         T = 2
         clocksize = 2
-        r=4
+        r = 4
 
     if num == '2':
         # From the paper, 'Quantum Circuit Design for Solving
@@ -63,7 +63,7 @@ def defaultprograms():
         b = 0.5*np.asarray([1,1,1,1])
         T = 16
         clocksize = 4
-        r=6
+        r = 5
     
     if num == '3':
         # Example with matrix that doesn't have eigenvalues
@@ -72,9 +72,9 @@ def defaultprograms():
         A = 2*np.asarray([[0.375,   0],
                           [0,    0.25]])
         b = np.asarray([1,1])
-        T=2
-        clocksize=4
-        r=4
+        T = 2
+        clocksize = 4
+        r = 4
 
     return A, b, r, T, clocksize
 
@@ -180,7 +180,7 @@ print('r: ', r)
 
 actualans=np.matmul(np.linalg.inv(A),np.asarray(b).reshape(len(b),1))
 eigval,eigvec = np.linalg.eig(A)
-print('Eigenvalues of A/T', eigval/T)
+print('Eigenvalues of A/T', np.around(eigval/T,decimals=6).tolist())
 cond = max(eigval)/min(eigval)
 
 cexpherm = hermtocontU(A,T)
@@ -224,6 +224,11 @@ QPEeigvals = list()
 for key in counts.keys():
     QPEeigvals.append(key[-len(qpeclock):])
 QPEeigvals = np.unique(QPEeigvals)
+
+QPEeigvallist = list()
+for v in QPEeigvals:
+    QPEeigvallist.append(binfractodec(v))
+print('Eigenvalues of A/T from QPE:', QPEeigvallist)
 
 ###########
 ### HHL ###
@@ -320,12 +325,12 @@ postselectionprob = 0
 postselectedvector = list()
 postselectedbinaryidx = list()
 
-print('Full Statevector:')
+#print('Full Statevector:')
 for i in range(len(statevec)):
     binary = str(bin(i))[2:]
     if len(binary)<binlen:
         binary = zeros[:-len(binary)]+binary
-    print(binary, statevec[i][0])
+    #print(binary, statevec[i][0])
     if binary[0]=='1':
         postselectionprob=postselectionprob+\
                 statevec[i][0]*statevec[i][0].conj()
@@ -333,23 +338,23 @@ for i in range(len(statevec)):
         postselectedbinaryidx.append(binary)
 normfactor = np.sqrt(np.sum(np.asarray(postselectedvector)**2))
 postselectedvector= postselectedvector/normfactor
-print('\n')
+#print('\n')
 
 postselectionprob = np.real(postselectionprob)*100
-print('Postselected Statevector (Postselection prob - {:.2f}%):'.format(postselectionprob))
+#print('Postselected Statevector (Postselection prob - {:.2f}%):'.format(postselectionprob))
 qbtoxstate = list()
 qbtoxbinidx = list()
 for i in range(len(postselectedvector)):
-    print(postselectedbinaryidx[i][1:],postselectedvector[i])
+    #print(postselectedbinaryidx[i][1:],postselectedvector[i])
     if postselectedbinaryidx[i][1:1+len(qclock)]=='0'*len(qclock):
         qbtoxbinidx.append(postselectedbinaryidx[i][-len(qbtox):])
         qbtoxstate.append(postselectedvector[i])
-print('\n')
+#print('\n')
 
-print('Solution Statevector:')
-for i in range(len(qbtoxstate)):
-    print(qbtoxbinidx[i],qbtoxstate[i])
-print('\n')
+#print('Solution Statevector:')
+#for i in range(len(qbtoxstate)):
+    #print(qbtoxbinidx[i],qbtoxstate[i])
+#print('\n')
 
 finalstatevector = np.asarray(qbtoxstate).reshape(len(qbtoxstate),1)
 
@@ -394,9 +399,15 @@ for key in counts.keys():
 
 measuredpostselectionprob = 100*postselectedtotcounts/shots 
 
+maxkey = 0
+for key in postselectedcounts.keys():
+    k = bintoint(key)
+    if k > maxkey:
+        maxkey = k
 print('Measured Postselection Probability: ', measuredpostselectionprob, '%')
 print('Statevector Simulation Postselection Probability: ', postselectionprob, '%')
-measurementcounts = np.zeros(shape=(len(postselectedcounts.keys()),1))
+measurementcounts = np.zeros(shape=(maxkey+1,1))
+
 for key in postselectedcounts.keys():
     idx = bintoint(key)
     measurementcounts[idx] = postselectedcounts[key]
