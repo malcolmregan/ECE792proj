@@ -395,7 +395,7 @@ for key in postselectedcounts.keys():
     measurementcounts[idx] = postselectedcounts[key]
     
 probabilityofmeas = measurementcounts/postselectedtotcounts
-normalizedmeasuredstate = probabilityofmeas/np.sqrt(np.sum(probabilityofmeas**2))
+normalizedmeasuredstate = np.sqrt(probabilityofmeas)
 print('Measurements out of', shots, 'shots:')
 print(measurementcounts)
 print('Measured Probability:')
