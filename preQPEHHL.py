@@ -46,7 +46,7 @@ def defaultprograms():
         b = np.asarray([2,0])
         T = 2
         clocksize = 2
-        r=10
+        r=5
 
     if num == '2':
         # From the paper, 'Quantum Circuit Design for Solving
@@ -344,10 +344,7 @@ for i in range(len(qbtoxstate)):
     print(qbtoxbinidx[i],qbtoxstate[i])
 print('\n')
 
-s = np.mean(actualans/np.real(np.asarray(qbtoxstate).reshape(len(qbtoxstate),1)))
-print('actual:\n',actualans,'\nstatevector:\n', np.asarray(qbtoxstate).reshape(len(qbtoxstate),1))
-print('s:\n', s)
-print('statevector times s:\n',np.asarray(qbtoxstate).reshape(len(qbtoxstate),1)*s)
+finalstatevector = np.asarray(qbtoxstate).reshape(len(qbtoxstate),1)
 
 #####################################
 ### measure, analyze measurements ###
@@ -378,62 +375,42 @@ job = execute(circ, bkend, shots=shots)
 result = job.result()
 counts = result.get_counts(circ)
 
-print('Need to fix this part')
-
-'''
-countpercent = np.zeros(shape=(len(qanc)+len(qbtox)+len(qclock),1))
-totcounts = 0
+postselectedtotcounts = 0
+postselectedcounts = dict()
 for key in counts.keys():
     keysp = key.split(' ')
-    if keysp[0] == '1':
-        totcounts = totcounts + counts[key]
-        countpercent[0] = countpercent[0] + counts[key]
-        for i in range(len(keysp[1])):
-            if keysp[1][i]== '1':
-                countpercent[1+i] = countpercent[1+i] + counts[key]
-        for i in range(len(keysp[2])):
-            if keysp[2][i] == '1':
-                countpercent[1+len(keysp[1])+i] = countpercent[1+len(keysp[1])+i] + counts[key]
+    if key[0]=='1':
+        postselectedtotcounts = postselectedtotcounts + counts[key]
+        if key not in postselectedcounts:
+            postselectedcounts[keysp[-1]] = 0
+        postselectedcounts[keysp[-1]] = postselectedcounts[keysp[-1]] + counts[key]
 
-countpercent=100*countpercent/totcounts
-print('-----------------------------------------------------------')
-print('probability of ancilla = 1 for post-selection from measurement: ', 100*totcounts/shots, '%')
-#print('-----------------------------------------------------------')
-#print('percent probabilities of qubits = 1, conditioned on ancilla = 1:\n', countpercent)
+measuredpostselectionprob = 100*postselectedtotcounts/shots 
 
-# get probabilities
-totcounts = 0
-HHLans = np.zeros(shape=(2**len(qbtox),1))
-for key in counts.keys():
-    keysp = key.split(' ')
-    if keysp[0] == '1': 
-        totcounts = totcounts + counts[key]
-        for i in range(len(qbtox)):
-            HHLans[bintoint(keysp[2])] = counts[key]
-HHLans = HHLans/totcounts
-
-actualans=np.matmul(np.linalg.inv(A),np.asarray(b).reshape(len(b),1))
-
-print('State probabilities from HHL:')
-for i in range(np.shape(HHLans)[0]):
-    print('{}|{}>'.format(HHLans[i][0],i), end=' ')
-    if i < np.shape(HHLans)[0]-1:
-        print('+', end=' ')
-
-print('\n-----------------------------------------------------------')
-print('Square root of these probabilities is proportional to (the magnitudes of) the exact solution, x:')
-print('|x,HHL> =', np.sqrt(HHLans.T)[0])
-print('-----------------------------------------------------------')
-print('The actual solution is:')
-print('x =', actualans.T[0], 'and the absolute value of x\'s elements should equal C|x,HHL>')
-print('-----------------------------------------------------------')
-print('|x|/|x,HHL> element-wise is')
-print(np.abs(actualans)/np.sqrt(HHLans))
-print('-----------------------------------------------------------')
-print('We can take the average of these elements as C')
-print('C =', np.mean(np.abs(actualans)/np.sqrt(HHLans)))
-print('-----------------------------------------------------------')
-print('Now we can show that |x,HHL> is proportional to the magnitudes of elements of x')
-print('C|x,HHL> =', np.sqrt(HHLans.T)[0]*np.mean(np.abs(actualans)/np.sqrt(HHLans)), 'is approximately equal to absolute value of x\'s elements,', np.abs(actualans.T[0]))
-print('-----------------------------------------------------------')
-'''
+print('Measured Postselection Probability: ', measuredpostselectionprob, '%')
+print('Statevector Simulation Postselection Probability: ', postselectionprob*100, '%')
+measurementcounts = np.zeros(shape=(len(postselectedcounts.keys()),1))
+for key in postselectedcounts.keys():
+    idx = bintoint(key)
+    measurementcounts[idx] = postselectedcounts[key]
+    
+probabilityofmeas = measurementcounts/postselectedtotcounts
+normalizedmeasuredstate = probabilityofmeas/np.sqrt(np.sum(probabilityofmeas**2))
+print('Measurements out of', shots, 'shots:')
+print(measurementcounts)
+print('Measured Probability:')
+print(probabilityofmeas)
+print('Normalized Measured State:')
+print(normalizedmeasuredstate)
+print('Simulated Statevector:')
+print(finalstatevector)
+print('Actual Answer:')
+print(actualans)
+print('Proportionality constant between actual answer and simulated statevector:')
+print(np.mean(np.abs(actualans)/np.abs(finalstatevector)))
+print('(Statevector)*(Proportionality Constant):')
+print(finalstatevector*np.mean(np.abs(actualans)/np.abs(finalstatevector)))
+print('Proportionality constant between actual answer and normalized measured state:')
+print(np.mean(np.abs(actualans)/np.abs(normalizedmeasuredstate)))
+print('(Normalized Measured State)*(Proportionality Constant):')
+print(normalizedmeasuredstate*np.mean(np.abs(actualans)/np.abs(normalizedmeasuredstate)))       
