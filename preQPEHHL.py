@@ -46,7 +46,7 @@ def defaultprograms():
         b = np.asarray([2,0])
         T = 2
         clocksize = 2
-        r=5
+        r=4
 
     if num == '2':
         # From the paper, 'Quantum Circuit Design for Solving
@@ -69,7 +69,7 @@ def defaultprograms():
         b = np.asarray([1,1])
         T=2
         clocksize=4
-        r=5
+        r=4
 
     return A, b, r, T, clocksize
 
@@ -321,15 +321,15 @@ for i in range(len(statevec)):
     print(binary, statevec[i][0])
     if binary[0]=='1':
         postselectionprob=postselectionprob+\
-                np.sqrt(np.real(statevec[i][0])**2+\
-                np.imag(statevec[i][0])**2)
+                statevec[i][0]*statevec[i][0].conj()
         postselectedvector.append(statevec[i][0])
         postselectedbinaryidx.append(binary)
 normfactor = np.sqrt(np.sum(np.asarray(postselectedvector)**2))
 postselectedvector= postselectedvector/normfactor
 print('\n')
 
-print('Postselected Statevector (Postselection prob - {:.2f}%):'.format(postselectionprob*100))
+postselectionprob = np.real(postselectionprob)*100
+print('Postselected Statevector (Postselection prob - {:.2f}%):'.format(postselectionprob))
 qbtoxstate = list()
 qbtoxbinidx = list()
 for i in range(len(postselectedvector)):
@@ -388,7 +388,7 @@ for key in counts.keys():
 measuredpostselectionprob = 100*postselectedtotcounts/shots 
 
 print('Measured Postselection Probability: ', measuredpostselectionprob, '%')
-print('Statevector Simulation Postselection Probability: ', postselectionprob*100, '%')
+print('Statevector Simulation Postselection Probability: ', postselectionprob, '%')
 measurementcounts = np.zeros(shape=(len(postselectedcounts.keys()),1))
 for key in postselectedcounts.keys():
     idx = bintoint(key)
