@@ -6,6 +6,8 @@ import numpy as np
 from math import pi
 from scipy.linalg import expm
 from qiskit.aqua.algorithms.single_sample.hhl import hhl
+import json
+
 np.set_printoptions(precision=5,linewidth=400)
 
 ############################
@@ -25,12 +27,15 @@ def userinput():
         print('A not hermitian, running default example')
         A = None
     if A is not None:
+        A = json.loads(A)
         A = np.asarray(A)
-        b = np.asarray(input('Enter b, a vector of length N as list: '))
-        r = input('Enter r, denoting how small eigenvalue-controlled rotations will be (angle proportional to 2^(-r)): ')
-        T = input('Enter T, such that eigenvalues of A/T are all less than 1: ')
-        clocksize = input('Enter QPE clocksize: ')
-    
+        b = input('Enter b, a vector of length N as list: ')
+        b = json.loads(b)
+        b = np.asarray(b)
+        r = int(input('Enter r, denoting how small eigenvalue-controlled rotations will be (angle proportional to 2^(-r)): '))
+        T = int(input('Enter T, such that eigenvalues of A/T are all less than 1: '))
+        clocksize = int(input('Enter QPE depth: '))
+     
     return A, b, r, T, clocksize
 
 def defaultprograms():
@@ -164,7 +169,7 @@ def prepareb(vector,circ, qb):
 
 A, b, r, T, clocksize = userinput()
 
-if A == None:
+if A is None:
     A, b, r, T, clocksize = defaultprograms()
 
 print('A: \n',A)
@@ -175,7 +180,9 @@ print('r: ', r)
 
 actualans=np.matmul(np.linalg.inv(A),np.asarray(b).reshape(len(b),1))
 eigval,eigvec = np.linalg.eig(A)
+print('Eigenvalues of A/T', eigval/T)
 cond = max(eigval)/min(eigval)
+
 cexpherm = hermtocontU(A,T)
 
 #######################################
