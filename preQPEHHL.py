@@ -312,9 +312,9 @@ circ.barrier()
 ### get statevector for qbtox conditioned on qanc = 1 ###
 #########################################################
 
-print('\n############################')
-print('### Statevector analysis ###')
-print('############################\n')
+#print('\n############################')
+#print('### Statevector analysis ###')
+#print('############################\n')
 
 statevec = getstatevector(circ)
 statevec = statevec.reshape(len(statevec),1)
@@ -405,7 +405,7 @@ for key in postselectedcounts.keys():
     if k > maxkey:
         maxkey = k
 print('Measured Postselection Probability: ', measuredpostselectionprob, '%')
-print('Statevector Simulation Postselection Probability: ', postselectionprob, '%')
+print('Statevector Simulation Postselection Probability: ', np.around(postselectionprob, decimals=3), '%')
 measurementcounts = np.zeros(shape=(maxkey+1,1))
 
 for key in postselectedcounts.keys():
